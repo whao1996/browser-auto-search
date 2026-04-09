@@ -1,0 +1,12 @@
+{
+  "name": "browser-auto-search",
+  "version": "1.0.0",
+  "description": "浏览器自动搜索程序",
+  "main": "search.js",
+  "scripts": {
+    "search": "node search.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}
