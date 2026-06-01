@@ -45,7 +45,7 @@ async function main() {
         
       // 等待搜索结果加载
       await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(10000); // 等待5秒查看结果
+      await page.waitForTimeout(Math.random() * 10000 + 10000);
         
       console.log(`  ✓ 搜索完成: ${news}`);
     } catch (error) {
