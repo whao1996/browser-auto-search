@@ -2,16 +2,45 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
+const HOT_API_URL = 'https://100tools.cn/hot-api/weibo';
+const HOT_NEWS_COUNT = 20;
+const HOT_API_TIMEOUT = 10000;
+
+// 从 100tools.cn 热榜接口获取微博热搜标题
+async function fetchHotNewsList() {
+  const resp = await fetch(HOT_API_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(HOT_API_TIMEOUT) });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+  const json = await resp.json();
+  if (json.code !== 200 || !Array.isArray(json.data)) throw new Error(`接口返回异常: code=${json.code}`);
+
+  const titles = json.data.map(item => item.title).filter(Boolean).slice(0, HOT_NEWS_COUNT);
+  if (titles.length === 0) throw new Error('热搜列表为空');
+
+  return titles;
+}
+
+// 兜底数据源: config.csv, 首行为表头 news, 之后每行一个关键词
+function readLocalNewsList() {
+  const csvContent = fs.readFileSync(path.join(__dirname, 'config.csv'), 'utf-8');
+  return csvContent.split('\n').map(line => line.trim()).filter(line => line !== '').slice(1);
+}
+
+async function getNewsList() {
+  try {
+    return await fetchHotNewsList();
+  } catch (error) {
+    console.warn(`微博热搜获取失败（${error.message}）, 改用本地 config.csv`);
+    return readLocalNewsList();
+  }
+}
+
 async function main() {
-  // 1. 读取 config.csv 文件
-  const csvPath = path.join(__dirname, 'config.csv');
-  const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  
-  // 解析 CSV 文件，跳过表头，获取新闻数组
-  const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line !== '');
-  const newsList = lines.slice(1); // 跳过表头 'news'
-  
-  console.log(`共读取到 ${newsList.length} 条新闻：`);
+  // 1. 获取搜索关键词: 微博热搜前 20 条, 失败则回落到 config.csv
+  const newsList = await getNewsList();
+  if (newsList.length === 0) throw new Error('没有可用的搜索关键词');
+
+  console.log(`共准备 ${newsList.length} 条搜索关键词：`);
   console.log(newsList);
   console.log('');
   
@@ -45,7 +74,7 @@ async function main() {
         
       // 等待搜索结果加载
       await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(Math.random() * 10000 + 10000);
+      await page.waitForTimeout(Math.random() * 5000 + 5000);
         
       console.log(`  ✓ 搜索完成: ${news}`);
     } catch (error) {
